@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import uuid
+
 
 ##################
 #   DEFINE BaseModels
@@ -27,21 +29,18 @@ class CreateTeam(BaseModel):
 
 class Team(BaseModel):
     team_name: str = ""
-    team_id: str = ""
+    id: str = ""
     operator_group: str = ""
     admin_group: str = ""
     slack_channel: str = ""
-    success: bool  = True
-    description: str = ""
-
 
 class GetService(BaseModel):
     id: str = "none"
     name: str = "none"
 
 class GetTeam(BaseModel):
-    id: str = "none"
-    name: str = "none"
+    id: str = ""
+    name: str = ""
 
 class CreateModel(BaseModel):
     id: str = "none"

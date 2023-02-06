@@ -4,8 +4,9 @@ import uuid
 from fastapi_pagination import Page, add_pagination, paginate
 
 from api.config import Settings
-from api.datastore import Dynamodb
+from api.datastore import Mongodb
 from api.schemas import CreateService, Service, CreateTeam, Team, GetService, GetTeam, CreateModel
+from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
 
@@ -18,45 +19,50 @@ set = Settings()
 
 @app.post('/create_service', response_model=CreateModel)
 async def create_service(service:CreateService):
-    cm = CreateModel()
+    pass
+    # cm = CreateModel()
 
-    #Generate UUID for service
-    id = str(uuid.uuid4().hex)
-    service.__dict__.update({"service_id" : id})
+    # #Generate UUID for service
+    # id = str(uuid.uuid4().hex)
+    # service.__dict__.update({"service_id" : id})
 
-    # Store Service Data
-    ds = Dynamodb()
-    response_mod = ds.store_service(service.__dict__, response_model=cm)
+    # # Store Service Data
+    # ds = Dynamodb()
+    # response_mod = ds.store_service(service.__dict__, response_model=cm)
 
-    return response_mod
+    # return response_mod
 
 @app.post('/create_team',response_model=CreateModel)
-async def create_team(team:CreateTeam):
+async def create_team(requested_team:CreateTeam):
     cm = CreateModel()
-
-    #Generate UUID for team
-    id = str(uuid.uuid4().hex)
-    team.__dict__.update({"team_id" : id})
+    team = Team.parse_obj(requested_team)
+    team.__dict__.update({"id" : str(uuid.uuid4().hex)})
 
     # Store Team Data
-    ds = Dynamodb()
-    response_mod = ds.store_team(team.__dict__, response_model=cm)
-
+    client = Mongodb()
+    response_mod = await client.create_team(jsonable_encoder(team),response_model=cm)
+    
     return response_mod
 
 @app.get("/get_team",response_model=Team)
 async def get_team(team_data: GetTeam):
-    query_params = team_data.dict()
-    team=Team()
-    ds = Dynamodb()
-    return ds.get_team(query_params, response_model=team)
+    t = Team()
+    team_data = jsonable_encoder(team_data)
+
+    # Get Team Data
+    client = Mongodb()
+    response_mod = await client.get_team(team_id=team_data["id"],team_name=team_data["name"],response_model=t)
+
+    return response_mod
 
 @app.get("/get_service",response_model=Service)
 async def get_service(service_data: GetService ):
-    query_params = service_data.dict()
-    service=Service()
-    ds = Dynamodb()
-    return ds.get_service(query_params, response_model=service)
+    pass
+    # query_params = service_data.dict()
+    # service=Service()
+    # ds = Dynamodb()
+    # return ds.get_service(query_params, response_model=service)
+    
 
 @app.get("/delete_service",response_model=Service)
 async def delete_service(service_data: GetService ):

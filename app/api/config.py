@@ -1,4 +1,4 @@
+import os
 
 class Settings:
-    TEAMS_DYNAMO_TABLE = "fp-gather-teams"
-    SERVICES_DYNAMO_TABLE = "fp-gather-services"
+    mongodb_url = os.environ["MONGODB_URL"]
