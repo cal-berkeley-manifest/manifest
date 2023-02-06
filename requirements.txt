@@ -28,6 +28,7 @@ typing_extensions==4.4.0
 urllib3==1.26.12
 uvicorn==0.19.0
 uvloop==0.17.0
+uuid==1.30
 watchfiles==0.18.0
 websockets==10.4
 Werkzeug==2.2.2
