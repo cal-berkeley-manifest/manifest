@@ -1,9 +1,11 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from api.config import Settings
+from app.api.config import Settings
 import motor.motor_asyncio
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
+from pymongo.server_api import ServerApi
+from pymongo.mongo_client import MongoClient
 
 
 set = Settings()
@@ -13,6 +15,9 @@ class Mongodb:
     
     client = motor.motor_asyncio.AsyncIOMotorClient(set.mongodb_url)
     db = client["manifest-dev"]
+
+    client2 = MongoClient(set.mongodb_url, server_api=ServerApi('1'))
+    db2 = client["manifest-dev"]
 
     async def create_team(self, item, response_model):
         
