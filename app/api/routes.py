@@ -1,11 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from functools import lru_cache
 import uuid
 from fastapi_pagination import Page, add_pagination, paginate
-
-from api.config import Settings
-from api.datastore import Mongodb
-from api.schemas import CreateService, Service, CreateTeam, Team, GetService, GetTeam, CreateModel
+from typing import List
+from app.api.config import Settings
+from app.api.datastore import Mongodb
+from app.api.schemas import CreateService, Service, CreateTeam, Team, GetService, GetTeam, CreateModel, DeleteModel
 from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
@@ -68,6 +68,21 @@ async def get_service(service_data: GetService ):
 async def delete_service(service_data: GetService ):
     pass
 
-@app.get("/delete_team",response_model=Service)
-async def delete_team(service_data: GetService ):
-    pass
+@app.delete("/delete_team",response_model=DeleteModel)
+async def delete_team(id: str):
+    dm = DeleteModel()
+    client = Mongodb()
+    response_mod = await client.delete_team(
+        team_id=id,
+        response_model=dm
+    )
+
+    if response_mod:
+        return response_mod
+    raise HTTPException(status_code=404, detail=f"Team not found")
+
+@app.get("/list_teams", response_model=List[Team])
+async def list_teams():
+    client = Mongodb()
+    response_mod = await client.list_teams()
+    return response_mod

@@ -51,3 +51,8 @@ class GetModel(BaseModel):
     id: str = "none"
     success: bool = True
     description: str = ""
+
+class DeleteModel(BaseModel):
+    id: str = "none"
+    success: bool = True
+    description: str = ""

@@ -8,6 +8,8 @@ setup:
 clean:
 	rm -rf manifest
 
+run:
+	uvicorn app.main:app --reload
 
 
 

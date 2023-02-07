@@ -1,6 +1,6 @@
 import boto3
 from boto3.dynamodb.conditions import Key
-from api.config import Settings
+from app.api.config import Settings
 import motor.motor_asyncio
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
@@ -57,6 +57,30 @@ class Mongodb:
         except Exception as e:
             return response_model
             raise e
+
+    async def delete_team(self, team_id, response_model=None):
+        try:
+            found_team = await self.db["teams"].find_one({"id": team_id})
+            if found_team:
+                # TODO: figure this out
+                await self.db["teams"].delete_one({"id": team_id})
+                
+            if response_model != None:
+                if found_team:
+                    response_model.__dict__.update({"description" : "Team successfully deleted", "success" : True, "id" : team_id})
+                else:
+                    response_model.__dict__.update({"description" : "Could not find team to delete", "success" : False, "id" : ""})
+                return response_model
+            else:
+                return
+
+        except Exception as e:
+            return response_model
+            raise e
+
+    async def list_teams(self):
+            teams = await self.db["teams"].find().to_list(1000)
+            return teams
 
 # class Dynamodb:
 #     # For dev needs to be removed VVV
