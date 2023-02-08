@@ -1,12 +1,15 @@
 .ONESHELL:
 setup:
-	virtualenv -p python3.9 manifest
+	virtualenv -p python3.9 env
 	. manifest/bin/activate
-	echo $(which pip3)
+	which pip3
 	#pip install -r requirements.txt
 
+run:
+	uvicorn main:app --reload
+
 clean:
-	rm -rf manifest
+	rm -rf env
 
 
 
