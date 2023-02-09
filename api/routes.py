@@ -64,7 +64,16 @@ async def create_team(requested_team: CreateTeam):
     client = Mongodb()
     response_mod = await client.create_team(jsonable_encoder(team),response_model=cm)
     
-    return response_mod
+    if response_mod.success == True:
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=jsonable_encoder(response_mod)
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT, 
+            content=jsonable_encoder(response_mod)
+        )
 
 @app.get("/get_team", response_model=Team)
 async def get_team(id: str=None, team_name: str=None):
@@ -76,9 +85,15 @@ async def get_team(id: str=None, team_name: str=None):
 
     # Get Team Data
     client = Mongodb()
-    response_mod = await client.get_team(team_id=team_data["id"],team_name=team_data["team_name"],response_model=Team)
+    response_mod = await client.get_team(
+        team_id=team_data["id"],
+        team_name=team_data["team_name"],
+        response_model=Team
+    )
 
-    return response_mod
+    if response_mod:
+        return response_mod
+    raise HTTPException(status_code=404, detail=f"Team not found")
 
 @app.get("/get_service", response_model=Service)
 async def get_service(id: str=None, service_name: str=None):
