@@ -8,14 +8,6 @@ class Mongodb:
     client = motor.motor_asyncio.AsyncIOMotorClient(set.mongodb_url)
     db = client["manifest-dev"]
 
-    async def list_services(self):
-        services = await self.db["services"].find().to_list(1000)
-        return services
-
-    async def list_teams(self):
-        teams = await self.db["teams"].find().to_list(1000)
-        return teams
-
     async def create_team(self, item, response_model):
         
         try:
@@ -92,18 +84,18 @@ class Mongodb:
             return response_model
             raise e
 
-    async def delete_team(self, team_id, response_model=None):
+    async def delete_team(self, id, response_model=None):
         try:
-            found_team = await self.db["teams"].find_one({"id": team_id})
+            found_team = await self.db["teams"].find_one({"id": id})
             if found_team:
                 # TODO: figure this out
-                await self.db["teams"].delete_one({"id": team_id})
+                await self.db["teams"].delete_one(found_team)
                 
             if response_model != None:
                 if found_team:
-                    response_model.__dict__.update({"description" : "Team successfully deleted", "success" : True, "id" : team_id})
+                    response_model.__dict__.update({"description" : "Team successfully deleted", "success" : True, "id": id})
                 else:
-                    response_model.__dict__.update({"description" : "Could not find team to delete", "success" : False, "id" : ""})
+                    response_model.__dict__.update({"description" : "Could not find team to delete", "success" : False})
                 return response_model
             else:
                 return
@@ -112,18 +104,18 @@ class Mongodb:
             return response_model
             raise e
 
-    async def delete_service(self, service_id, response_model=None):
+    async def delete_service(self, id, response_model=None):
         try:
-            found_service = await self.db["services"].find_one({"id": service_id})
+            found_service = await self.db["services"].find_one({"id": id})
             if found_service:
                 # TODO: figure this out
-                await self.db["services"].delete_one({"id": service_id})
+                await self.db["services"].delete_one(found_service)
                 
             if response_model != None:
                 if found_service:
-                    response_model.__dict__.update({"description" : "Service successfully deleted", "success" : True, "id" : service_id})
+                    response_model.__dict__.update({"description" : "Service successfully deleted", "success" : True, "id": id})
                 else:
-                    response_model.__dict__.update({"description" : "Could not find service to delete", "success" : False, "id" : ""})
+                    response_model.__dict__.update({"description" : "Could not find service to delete", "success" : False})
                 return response_model
             else:
                 return
@@ -131,3 +123,11 @@ class Mongodb:
         except Exception as e:
             return response_model
             raise e
+
+    async def list_teams(self):
+            teams = await self.db["teams"].find().to_list(1000)
+            return teams
+
+    async def list_services(self):
+        services = await self.db["services"].find().to_list(1000)
+        return services

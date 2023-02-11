@@ -7,7 +7,7 @@ from typing import Optional
 class CreateService(BaseModel):
     service_name: str
     pager_duty_link: str
-    team_id: str
+    service_id: str
 
 class CreateTeam(BaseModel):
     team_name: str
@@ -19,7 +19,6 @@ class Service(BaseModel):
     id: str = ""
     service_name: str = ""
     pager_duty_link: str = ""
-    team_id: Optional[str] = ""
 
 class Team(BaseModel):
     id: str = ""
@@ -33,12 +32,7 @@ class CreateModel(BaseModel):
     success: bool = True
     description: str = ""
 
-class ServiceNoID(BaseModel):
-    service_name: str = ""
-    pager_duty_link: str = ""
-    team_id: Optional[str] = ""
-
 class DeleteModel(BaseModel):
-    id: str = "none"
     success: bool = True
     description: str = ""
+    id: str = ""
