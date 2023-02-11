@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi_pagination import Page, add_pagination, paginate
 from api.config import Settings
 from api.datastore import Mongodb
-from api.schemas import CreateService, Service, CreateTeam, Team, CreateModel, ServiceNoID
+from api.schemas import CreateService, Service, CreateTeam, Team, CreateModel, ServiceNoID, DeleteModel
 from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
@@ -113,12 +113,34 @@ async def get_service(id: str=None, service_name: str=None):
         return response_mod
     raise HTTPException(status_code=404, detail=f"Service not found")
 
-'''
-@app.get("/delete_service",response_model=Service)
-async def delete_service(service_data: GetService ):
-    pass
+@app.delete("/delete_team",response_model=DeleteModel)
+async def delete_team(id: str):
+    dm = DeleteModel()
+    client = Mongodb()
+    response_mod = await client.delete_team(
+        team_id=id,
+        response_model=dm
+    )
 
-@app.get("/delete_team",response_model=Service)
-async def delete_team(service_data: GetService ):
-    pass
-'''
+    if response_mod:
+        return response_mod
+    raise HTTPException(status_code=404, detail=f"Team not found")
+
+@app.delete("/delete_service",response_model=DeleteModel)
+async def delete_service(id: str):
+    dm = DeleteModel()
+    client = Mongodb()
+    response_mod = await client.delete_service(
+        service_id=id,
+        response_model=dm
+    )
+
+    if response_mod:
+        return response_mod
+    raise HTTPException(status_code=404, detail=f"Service not found")
+
+@app.get("/list_teams", response_model=List[ServiceNoID])
+async def list_teams():
+    client = Mongodb()
+    response_mod = await client.list_teams()
+    return response_mod

@@ -37,3 +37,8 @@ class ServiceNoID(BaseModel):
     service_name: str = ""
     pager_duty_link: str = ""
     team_id: Optional[str] = ""
+
+class DeleteModel(BaseModel):
+    id: str = "none"
+    success: bool = True
+    description: str = ""
