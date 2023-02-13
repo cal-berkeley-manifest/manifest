@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi_pagination import Page, add_pagination, paginate
 from api.config import Settings
 from api.datastore import Mongodb
-from api.schemas import CreateService, Service, CreateTeam, Team, CreateModel, DeleteModel
+from api.schemas import CreateService, Service, CreateTeam, Team, CreateModel, ServiceNoID
 from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
@@ -16,6 +16,12 @@ set = Settings()
 ##########################
 #       Core Routes
 ##########################
+
+@app.get("/list_services", response_model=List[ServiceNoID])
+async def list_services():
+    client = Mongodb()
+    response_mod = await client.list_services()
+    return response_mod
 
 @app.post("/create_service", response_model=CreateModel)
 async def create_service(requested_service: CreateService):
@@ -80,7 +86,7 @@ async def get_team(id: str=None, team_name: str=None):
     # Get Team Data
     client = Mongodb()
     response_mod = await client.get_team(
-        id=team_data["id"],
+        team_id=team_data["id"],
         team_name=team_data["team_name"],
         response_model=Team
     )
@@ -98,7 +104,7 @@ async def get_service(id: str=None, service_name: str=None):
 
     client = Mongodb()
     response_mod = await client.get_service(
-        id=service_data["id"],
+        service_id=service_data["id"],
         service_name=service_data["service_name"],
         response_model=Service
     )
@@ -107,40 +113,12 @@ async def get_service(id: str=None, service_name: str=None):
         return response_mod
     raise HTTPException(status_code=404, detail=f"Service not found")
 
-@app.delete("/delete_team",response_model=DeleteModel)
-async def delete_team(id: str=None):
-    dm = DeleteModel()
-    client = Mongodb()
-    response_mod = await client.delete_team(
-        id=id,
-        response_model=dm
-    )
+'''
+@app.get("/delete_service",response_model=Service)
+async def delete_service(service_data: GetService ):
+    pass
 
-    if response_mod:
-        return response_mod
-    raise HTTPException(status_code=404, detail=f"Team not found")
-
-@app.delete("/delete_service",response_model=DeleteModel)
-async def delete_service(id: str=None):
-    dm = DeleteModel()
-    client = Mongodb()
-    response_mod = await client.delete_service(
-        id=id,
-        response_model=dm
-    )
-
-    if response_mod:
-        return response_mod
-    raise HTTPException(status_code=404, detail=f"Service not found")
-
-@app.get("/list_teams", response_model=List[Team])
-async def list_teams():
-    client = Mongodb()
-    response_mod = await client.list_teams()
-    return response_mod
-
-@app.get("/list_services", response_model=List[Service])
-async def list_services():
-    client = Mongodb()
-    response_mod = await client.list_services()
-    return response_mod
+@app.get("/delete_team",response_model=Service)
+async def delete_team(service_data: GetService ):
+    pass
+'''
