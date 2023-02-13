@@ -70,18 +70,18 @@ async def create_team(requested_team: CreateTeam):
         )
 
 @app.get("/get_team", response_model=Team)
-async def get_team(id: str=None, team_name: str=None):
+async def get_team(id: str=None, name: str=None):
     #t = GetModel
     team_data = {
         "id": id,
-        "team_name": team_name
+        "name": name
     }
 
     # Get Team Data
     client = Mongodb()
     response_mod = await client.get_team(
         id=team_data["id"],
-        team_name=team_data["team_name"],
+        name=team_data["name"],
         response_model=Team
     )
 
@@ -90,16 +90,16 @@ async def get_team(id: str=None, team_name: str=None):
     raise HTTPException(status_code=404, detail=f"Team not found")
 
 @app.get("/get_service", response_model=Service)
-async def get_service(id: str=None, service_name: str=None):
+async def get_service(id: str=None, name: str=None):
     service_data = {
         "id": id,
-        "service_name": service_name
+        "name": name
     }
 
     client = Mongodb()
     response_mod = await client.get_service(
         id=service_data["id"],
-        service_name=service_data["service_name"],
+        name=service_data["name"],
         response_model=Service
     )
 

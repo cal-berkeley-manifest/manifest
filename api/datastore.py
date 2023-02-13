@@ -11,15 +11,15 @@ class Mongodb:
     async def create_team(self, item, response_model):
         
         try:
-            team_found = await self.get_team("",item["team_name"])
+            team_found = await self.get_team("",item["name"])
             if team_found:
                 response_model.__dict__.update({"description" : "Team name already exists", "success" : False, "id" : ""})
                 return response_model
             else:
                 new_team = await self.db["teams"].insert_one(item)
-                team_id = item["id"]
-                created_team = await self.db["teams"].find_one({"id": team_id})
-                response_model.__dict__.update({"description" : "Team Created", "success" : True, "id" : str(team_id)})
+                id = item["id"]
+                created_team = await self.db["teams"].find_one({"id": id})
+                response_model.__dict__.update({"description" : "Team Created", "success" : True, "id" : str(id)})
                 return response_model
 
         except Exception as e:
@@ -29,15 +29,19 @@ class Mongodb:
 
     async def create_service(self, item, response_model):   
         try:
-            service_found = await self.get_service("",item["service_name"])
+            service_found = await self.get_service("",item["name"])
             if service_found:
                 response_model.__dict__.update({"description" : "Service name already exists", "success" : False, "id" : ""})
                 return response_model
             else:
+                team_found = await self.get_team(item["team_id"], "")
+                if team_found is None:
+                    response_model.__dict__.update({"description" : "Invalid team_id assigned to service", "success" : False, "id" : ""})
+                    return response_model
                 new_service = await self.db["services"].insert_one(item)
-                service_id = item["id"]
-                created_service = await self.db["services"].find_one({"id": service_id})
-                response_model.__dict__.update({"description" : "Service Created", "success" : True, "id" : str(service_id)})
+                id = item["id"]
+                created_service = await self.db["services"].find_one({"id": id})
+                response_model.__dict__.update({"description" : "Service Created", "success" : True, "id" : str(id)})
                 return response_model
 
         except Exception as e:
@@ -45,13 +49,13 @@ class Mongodb:
             raise e
             return response_model
         
-    async def get_team(self, team_id, team_name, response_model=None):
-        if team_id:
+    async def get_team(self, id, name, response_model=None):
+        if id:
             key = "id"
-            value = team_id
+            value = id
         else:
-            key = "team_name"
-            value = team_name
+            key = "name"
+            value = name
         try:
             found_team = await self.db["teams"].find_one({key: value})
             if response_model != None and (found_team):
@@ -64,13 +68,13 @@ class Mongodb:
             return response_model
             raise e
 
-    async def get_service(self, service_id, service_name, response_model=None):
-        if service_id:
+    async def get_service(self, id, name, response_model=None):
+        if id:
             key = "id"
-            value = service_id
+            value = id
         else:
-            key = "service_name"
-            value = service_name
+            key = "name"
+            value = name
         try:
             found_service = await self.db["services"].find_one({key: value})
         
