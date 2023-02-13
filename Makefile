@@ -1,7 +1,7 @@
 .ONESHELL:
 setup:
 	virtualenv -p python3.9 env
-	. manifest/bin/activate
+	. env/bin/activate
 	which pip3
 	#pip install -r requirements.txt
 
