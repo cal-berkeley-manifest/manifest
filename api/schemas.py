@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
+from typing import Union
 
 ##################
 #   DEFINE BaseModels
 ##################
+
 class CreateService(BaseModel):
     name: str
     pager_duty_link: str
@@ -14,6 +15,12 @@ class CreateTeam(BaseModel):
     operator_group: str
     admin_group: str
     slack_channel: str
+
+class UpdateTeam(BaseModel):
+    name: Union[str, None] = None
+    operator_group: Union[str, None] = None
+    admin_group: Union[str, None] = None
+    slack_channel: Union[str, None] = None
     
 class Service(BaseModel):
     id: str = ""
@@ -35,5 +42,10 @@ class CreateModel(BaseModel):
 
 class DeleteModel(BaseModel):
     id: str = ""
+    success: bool = True
+    description: str = ""
+
+class UpdateModel(BaseModel):
+    id: str= ""
     success: bool = True
     description: str = ""

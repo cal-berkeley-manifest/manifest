@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi_pagination import Page, add_pagination, paginate
 from api.config import Settings
 from api.datastore import Mongodb
-from api.schemas import CreateService, Service, CreateTeam, Team, CreateModel, DeleteModel
+from api.schemas import *
 from fastapi.encoders import jsonable_encoder
 
 app = FastAPI()
@@ -107,8 +107,22 @@ async def get_service(id: str=None, name: str=None):
         return response_mod
     raise HTTPException(status_code=404, detail=f"Service not found")
 
+
+@app.put("/update_team", response_model=UpdateModel)
+async def update_team(id: str, updated_team: UpdateTeam):
+    updated_team = {k: v for k, v in updated_team.dict().items() if v is not None}
+    client = Mongodb()
+    response_mod = await client.update_team(
+        id=id,
+        update_info=updated_team,
+        response_model=UpdateModel()
+        )
+
+    if response_mod:
+        return response_mod
+
 @app.delete("/delete_team",response_model=DeleteModel)
-async def delete_team(id: str=None):
+async def delete_team(id: str):
     dm = DeleteModel()
     client = Mongodb()
     response_mod = await client.delete_team(
@@ -116,12 +130,16 @@ async def delete_team(id: str=None):
         response_model=dm
     )
 
-    if response_mod:
+    if response_mod.success == True:
         return response_mod
-    raise HTTPException(status_code=404, detail=f"Team not found")
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=jsonable_encoder(response_mod)
+            )
 
 @app.delete("/delete_service",response_model=DeleteModel)
-async def delete_service(id: str=None):
+async def delete_service(id: str):
     dm = DeleteModel()
     client = Mongodb()
     response_mod = await client.delete_service(

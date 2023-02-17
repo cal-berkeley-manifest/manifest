@@ -1,5 +1,8 @@
 from api.config import Settings
 import motor.motor_asyncio
+from fastapi import status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 set = Settings()
 
@@ -83,6 +86,47 @@ class Mongodb:
                 return response_model
             else:
                 return found_service
+
+        except Exception as e:
+            return response_model
+            raise e
+
+    async def update_team(self, id, update_info, response_model=None):
+        try:
+            found_team = await self.db["teams"].find_one({"id": id})
+            if found_team:
+                updated_team = await self.db["teams"].update_one({"id": id}, {"$set": update_info})
+                if updated_team:
+                    response_model.__dict__.update(
+                        {
+                            "description": "Team successfully updated",
+                            "success": True,
+                            "id": id
+                        }
+                    )
+                    return response_model
+                else:
+                    response_model.__dict__.update(
+                        {
+                            "description": "Could not update team",
+                            "success": False,
+                        }
+                    )
+                    return JSONResponse(
+                        status_code=status.HTTP_304_NOT_MODIFIED,
+                        content=jsonable_encoder(response_model)
+                    )
+            else:
+                response_model.__dict__.update(
+                    {
+                        "description": "Could not find team to update",
+                        "success": False
+                    }
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content=jsonable_encoder(response_model)
+                )
 
         except Exception as e:
             return response_model
