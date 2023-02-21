@@ -132,6 +132,61 @@ class Mongodb:
             return response_model
             raise e
 
+    async def update_service(self, id, update_info, response_model=None):
+        try:
+            found_service = await self.db["services"].find_one({"id": id})
+            if found_service:
+
+                team_found = await self.get_team(update_info["team_id"], "")
+                if team_found is None:
+                    response_model.__dict__.update(
+                        {"description" : "Invalid team_id assigned to service", 
+                        "success" : False, 
+                        "id" : ""
+                        }
+                    )
+                    return JSONResponse(
+                        status_code=status.HTTP_412_PRECONDITION_FAILED,
+                        content=jsonable_encoder(response_model)
+                    )
+
+                updated_service = await self.db["services"].update_one({"id": id}, {"$set": update_info})
+                if updated_service:
+                    response_model.__dict__.update(
+                        {
+                            "description": "Service successfully updated",
+                            "success": True,
+                            "id": id
+                        }
+                    )
+                    return response_model
+                else:
+                    response_model.__dict__.update(
+                        {
+                            "description": "Could not update service",
+                            "success": False,
+                        }
+                    )
+                    return JSONResponse(
+                        status_code=status.HTTP_304_NOT_MODIFIED,
+                        content=jsonable_encoder(response_model)
+                    )
+            else:
+                response_model.__dict__.update(
+                    {
+                        "description": "Could not find service to update",
+                        "success": False
+                    }
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    content=jsonable_encoder(response_model)
+                )
+
+        except Exception as e:
+            return response_model
+            raise e
+
     async def delete_team(self, id, response_model=None):
         try:
             found_team = await self.db["teams"].find_one({"id": id})

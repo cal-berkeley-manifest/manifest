@@ -21,6 +21,11 @@ class UpdateTeam(BaseModel):
     operator_group: Union[str, None] = None
     admin_group: Union[str, None] = None
     slack_channel: Union[str, None] = None
+
+class UpdateService(BaseModel):
+    name: Union[str, None] = None
+    pager_duty_link: Union[str, None] = None
+    team_id: Union[str, None] = None
     
 class Service(BaseModel):
     id: str = ""
