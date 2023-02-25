@@ -3,6 +3,7 @@ import motor.motor_asyncio
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from api.schemas import *
 
 set = Settings()
 
@@ -190,10 +191,17 @@ class Mongodb:
     async def delete_team(self, id, response_model=None):
         try:
             found_team = await self.db["teams"].find_one({"id": id})
-            if found_team:
-                # TODO: figure this out
-                await self.db["teams"].delete_one(found_team)
-                
+            if found_team != None:
+                team_model = Team.parse_obj(found_team)
+                services = await self.list_services()
+                if services != None and len(services) > 0:
+                    for service in services:
+                        service_model = Service.parse_obj(service)
+                        if service_model.team_id == team_model.id:
+                            response_model.__dict__.update({"description" : "Cannot delete team with active services", "success" : False})
+                            return response_model
+                await self.db["teams"].delete_one({"id": id})
+
             if response_model != None:
                 if found_team:
                     response_model.__dict__.update({"description" : "Team successfully deleted", "success" : True, "id": id})
@@ -212,7 +220,7 @@ class Mongodb:
             found_service = await self.db["services"].find_one({"id": id})
             if found_service:
                 # TODO: figure this out
-                await self.db["services"].delete_one(found_service)
+                await self.db["services"].delete_one({"id": id})
                 
             if response_model != None:
                 if found_service:
