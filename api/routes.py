@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from typing import List
+from typing import List, Union
 from functools import lru_cache
 from uuid import uuid4
 from fastapi_pagination import Page, add_pagination, paginate
@@ -169,13 +169,29 @@ async def delete_service(id: str):
             )
 
 @app.get("/list_teams", response_model=List[Team])
-async def list_teams():
+async def list_teams(query: str=None):
     client = Mongodb()
+    if query:
+        response_mod = await client.query_teams(
+            query=query,
+            response_model=UpdateModel()
+        )
+        if response_mod:
+            return response_mod
+        
     response_mod = await client.list_teams()
     return response_mod
 
-@app.get("/list_services", response_model=List[Service])
-async def list_services():
+@app.get("/list_services", response_model=Union[List[Service],UpdateModel])
+async def list_services(query: str=None):
     client = Mongodb()
+    if query:
+        response_mod = await client.query_services(
+            query=query,
+            response_model=UpdateModel()
+        )
+        if response_mod:
+            return response_mod
+        
     response_mod = await client.list_services()
     return response_mod

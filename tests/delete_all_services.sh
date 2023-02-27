@@ -2,12 +2,13 @@
 
 ALL_IDS=$(
     curl -X 'GET' \
-    'http://127.0.0.1:8000/list_teams' \
+    'http://127.0.0.1:8000/list_services' \
     -H 'accept: application/json' | \
     python3 -c "import sys, json; \
     service_list = json.load(sys.stdin); \
     print([service['id'] for service in service_list])"
 )
+echo "DEBUG: $ALL_IDS"
 
 for id in $ALL_IDS; do
     id=$(echo $id | sed "s/[,']//g" | sed "s/[][]//g")

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Union
+from typing import Union, Set, List
 
 ##################
 #   DEFINE BaseModels
@@ -26,12 +26,15 @@ class UpdateService(BaseModel):
     name: Union[str, None] = None
     pager_duty_link: Union[str, None] = None
     team_id: Union[str, None] = None
+    add_tag: List[str] = list()
+    delete_tag: List[str] = list()
     
 class Service(BaseModel):
     id: str = ""
     name: str = ""
     pager_duty_link: str = ""
     team_id = ""
+    tags: Set[str] = set()
 
 class Team(BaseModel):
     id: str = ""

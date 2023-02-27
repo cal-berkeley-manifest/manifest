@@ -1,0 +1,6 @@
+{"tags": {"$in": ["tag_eight", "tag_one"]}}
+{"name": {"$in": ["TEAM_19852"]}}
+{"operator_group": {"$in": ["op_group_1", "op_group_2"]}}
+
+# Set language to Python at top right
+https://www.mongodb.com/docs/manual/tutorial/query-documents/

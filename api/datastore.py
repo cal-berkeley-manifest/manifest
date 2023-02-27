@@ -4,6 +4,8 @@ from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from api.schemas import *
+from json import loads
+from json.decoder import JSONDecodeError
 
 set = Settings()
 
@@ -137,19 +139,51 @@ class Mongodb:
         try:
             found_service = await self.db["services"].find_one({"id": id})
             if found_service:
-
-                team_found = await self.get_team(update_info["team_id"], "")
-                if team_found is None:
-                    response_model.__dict__.update(
-                        {"description" : "Invalid team_id assigned to service", 
-                        "success" : False, 
-                        "id" : ""
-                        }
+                if 'team_id' in update_info:
+                    team_found = await self.get_team(update_info["team_id"], "")
+                    if team_found is None:
+                        response_model.__dict__.update(
+                            {"description" : "Invalid team_id assigned to service", 
+                            "success" : False, 
+                            "id" : ""
+                            }
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_412_PRECONDITION_FAILED,
+                            content=jsonable_encoder(response_model)
+                        )
+                if 'add_tag' in update_info:
+                    updated_tags = await self.db["services"].update_one(
+                                {"id": id},
+                                {"$addToSet": {"tags": {"$each": update_info['add_tag']}}}
+                            )
+                    if not updated_tags:
+                        response_model.__dict__.update(
+                            {
+                                "description": "Tag could not be added",
+                                "success": False
+                            }
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_412_PRECONDITION_FAILED,
+                            content=jsonable_encoder(response_model)
+                        )
+                if 'delete_tag' in update_info:
+                    deleted_tags = await self.db["services"].update_one(
+                        {"id": id},
+                        {"$pull": {"tags": {"$in": update_info['delete_tag']}}}
                     )
-                    return JSONResponse(
-                        status_code=status.HTTP_412_PRECONDITION_FAILED,
-                        content=jsonable_encoder(response_model)
-                    )
+                    if not deleted_tags:
+                        response_model.__dict__.update(
+                            {
+                                "description": "Tag could not be deleted",
+                                "success": False
+                            }
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_412_PRECONDITION_FAILED,
+                            content=jsonable_encoder(response_model)
+                        )
 
                 updated_service = await self.db["services"].update_one({"id": id}, {"$set": update_info})
                 if updated_service:
@@ -184,9 +218,16 @@ class Mongodb:
                     content=jsonable_encoder(response_model)
                 )
 
+# Using this for except block for debugging, but not sure final app should return this info.
         except Exception as e:
-            return response_model
-            raise e
+            response_model.__dict__.update({
+                "description": str(e),
+                "success": False
+            })
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content=jsonable_encoder(response_model)
+            )
 
     async def delete_team(self, id, response_model=None):
         try:
@@ -242,3 +283,73 @@ class Mongodb:
     async def list_services(self):
         services = await self.db["services"].find().to_list(1000)
         return services
+    
+    async def query_teams(self, query, response_model=None):
+        try:
+            encoded = loads(query)
+            if encoded:
+                query_success = await self.db["teams"].find(encoded).to_list(1000)
+                if query_success:
+                    return query_success
+                else:
+                    response_model.__dict__.update({
+                        "description": "Could not find teams using provided query",
+                        "success": False
+                    })
+                    return JSONResponse(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content=jsonable_encoder(response_model)
+                    )
+        except JSONDecodeError as e:
+           response_model.__dict__.update({
+                "description": "Could not decode provided query",
+                "success": False
+            })
+           return JSONResponse(
+                status_code=status.HTTP_412_PRECONDITION_FAILED,
+                content=jsonable_encoder(response_model)
+            )
+        except Exception as e:
+            response_model.__dict__.update({
+                "description": str(e),
+                "success": False
+            })
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content=jsonable_encoder(response_model)
+            )
+
+    async def query_services(self, query, response_model=None):
+        try:
+            encoded = loads(query)
+            if encoded:
+                query_success = await self.db["services"].find(encoded).to_list(1000)
+                if query_success:
+                    return query_success
+                else:
+                    response_model.__dict__.update({
+                        "description": "Could not find services using provided query",
+                        "success": False
+                    })
+                    return JSONResponse(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content=jsonable_encoder(response_model)
+                    )
+        except JSONDecodeError as e:
+            response_model.__dict__.update({
+                "description": "Could not decode provided query",
+                "success": False
+            })
+            return JSONResponse(
+                status_code=status.HTTP_412_PRECONDITION_FAILED,
+                content=jsonable_encoder(response_model)
+            )
+        except Exception as e:
+            response_model.__dict__.update({
+                "description": str(e),
+                "success": False
+            })
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content=jsonable_encoder(response_model)
+            )
