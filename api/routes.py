@@ -168,7 +168,7 @@ async def delete_service(id: str):
             content=jsonable_encoder(response_mod)
             )
 
-@app.get("/list_teams", response_model=List[Team])
+@app.get("/list_teams", response_model=Union[List[Team],UpdateModel])
 async def list_teams(query: str=None):
     client = Mongodb()
     if query:
