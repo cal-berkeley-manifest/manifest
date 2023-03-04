@@ -9,6 +9,9 @@ from api.config import Settings
 from api.datastore import Mongodb
 from api.schemas import *
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+
 
 app = FastAPI()
 set = Settings()
@@ -196,16 +199,57 @@ async def list_services(query: str=None):
     response_mod = await client.list_services()
     return response_mod
 
-@app.get("/get_teams_csv", response_model=Union[List[Team],UpdateModel])
-async def list_teams(query: str=None):
+@app.get("/download_teams", response_description='csv')
+async def download_teams():
     client = Mongodb()
-    if query:
-        response_mod = await client.query_teams(
-            query=query,
-            response_model=UpdateModel()
-        )
-        if response_mod:
-            return response_mod
-        
-    response_mod = await client.list_teams()
-    return response_mod
+    csvStr = "id,name,operator_group,admin_group,slack_channel\n"
+    teams = await client.list_teams()
+    for team in teams:
+        csvStr += team["id"]
+        csvStr += ","
+        csvStr += team["name"]
+        csvStr += ","
+        csvStr += team["operator_group"]
+        csvStr += ","
+        csvStr += team["admin_group"]
+        csvStr += ","
+        csvStr += team["slack_channel"]
+        csvStr += "\n"
+    csvStrBytes = csvStr.encode('utf-8')
+    output = BytesIO(csvStrBytes)
+
+    headers = {
+        'Content-Disposition': 'attachment; filename="manifest_teams.csv"'
+    }
+    return StreamingResponse(iter([output.getvalue()]), headers=headers)
+
+@app.get("/download_services", response_description='csv')
+async def download_services():
+    client = Mongodb()
+    csvStr = "id,name,pager_duty_link,team_id,tags\n"
+    teams = await client.list_services()
+    for team in teams:
+        csvStr += team["id"]
+        csvStr += ","
+        csvStr += team["name"]
+        csvStr += ","
+        csvStr += team["pager_duty_link"]
+        csvStr += ","
+        csvStr += team["team_id"]
+        csvStr += ","
+        tagsStr = "\""
+        tags = team["tags"]
+        for i, tag in enumerate(tags):
+            tagsStr += tag
+            if (i < (len(tags)-1)):
+                tagsStr += ","
+        tagsStr += "\""
+        csvStr += tagsStr
+        csvStr += "\n"
+    csvStrBytes = csvStr.encode('utf-8')
+    output = BytesIO(csvStrBytes)
+
+    headers = {
+        'Content-Disposition': 'attachment; filename="manifest_services.csv"'
+    }
+    return StreamingResponse(iter([output.getvalue()]), headers=headers)
