@@ -195,3 +195,17 @@ async def list_services(query: str=None):
         
     response_mod = await client.list_services()
     return response_mod
+
+@app.get("/get_teams_csv", response_model=Union[List[Team],UpdateModel])
+async def list_teams(query: str=None):
+    client = Mongodb()
+    if query:
+        response_mod = await client.query_teams(
+            query=query,
+            response_model=UpdateModel()
+        )
+        if response_mod:
+            return response_mod
+        
+    response_mod = await client.list_teams()
+    return response_mod
