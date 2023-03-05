@@ -57,3 +57,12 @@ class UpdateModel(BaseModel):
     id: str= ""
     success: bool = True
     description: str = ""
+
+class Upsert(BaseModel):
+    success: bool = True
+
+#class BulkUpsertModel(BaseModel):
+#    num_attempted_to_create: int = 0
+#    num_created: int = 0
+#    num_attempted_to_update: int = 0
+#    num_updated: int = 0

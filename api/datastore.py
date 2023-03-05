@@ -7,11 +7,11 @@ from api.schemas import *
 from json import loads
 from json.decoder import JSONDecodeError
 
-set = Settings()
+settings = Settings()
 
 class Mongodb:
     
-    client = motor.motor_asyncio.AsyncIOMotorClient(set.mongodb_url)
+    client = motor.motor_asyncio.AsyncIOMotorClient(settings.mongodb_url)
     db = client["manifest-dev"]
 
     async def create_team(self, item, response_model):
@@ -229,18 +229,19 @@ class Mongodb:
                 content=jsonable_encoder(response_model)
             )
 
-    async def delete_team(self, id, response_model=None):
+    async def delete_team(self, id, response_model=None,ignore_service_check=False):
         try:
             found_team = await self.db["teams"].find_one({"id": id})
             if found_team != None:
                 team_model = Team.parse_obj(found_team)
-                services = await self.list_services()
-                if services != None and len(services) > 0:
-                    for service in services:
-                        service_model = Service.parse_obj(service)
-                        if service_model.team_id == team_model.id:
-                            response_model.__dict__.update({"description" : "Cannot delete team with active services", "success" : False})
-                            return response_model
+                if ignore_service_check is False:
+                    services = await self.list_services()
+                    if services != None and len(services) > 0:
+                        for service in services:
+                            service_model = Service.parse_obj(service)
+                            if service_model.team_id == team_model.id:
+                                response_model.__dict__.update({"description" : "Cannot delete team with active services", "success" : False})
+                                return response_model
                 await self.db["teams"].delete_one({"id": id})
 
             if response_model != None:
