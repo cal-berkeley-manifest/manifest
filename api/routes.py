@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
@@ -11,10 +11,12 @@ from api.schemas import *
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from io import BytesIO
+import csv
+import codecs
 
 
 app = FastAPI()
-set = Settings()
+settings = Settings()
 
 ##########################
 #       Core Routes
@@ -253,3 +255,119 @@ async def download_services():
         'Content-Disposition': 'attachment; filename="manifest_services.csv"'
     }
     return StreamingResponse(iter([output.getvalue()]), headers=headers)
+
+@app.post("/upload_services")
+async def upload(file: UploadFile = File(...)):
+    csvReader = csv.DictReader(codecs.iterdecode(file.file, 'utf-8'))
+    client = Mongodb()
+    num_attempted_to_update = 0
+    num_updated = 0
+    num_attempted_to_create = 0
+    num_created = 0
+    for rows in csvReader:   
+        isUpdate = False          
+        tagsStr = rows['tags']
+        tagsList = tagsStr.split(",")
+
+        cm = CreateModel()
+        
+        newService = Service()
+        if rows["id"]:
+            dm = DeleteModel()
+            del_resp_model = await client.delete_service(
+                id = rows["id"],
+                response_model = dm
+            )
+            if del_resp_model.success is True:
+                isUpdate = True
+                num_attempted_to_update += 1
+            else:
+                num_attempted_to_create += 1
+            newService.id = rows["id"]
+        else:
+            newService.id = str(uuid4().hex)
+            num_attempted_to_create += 1
+
+        newService.name = rows["name"]
+        newService.pager_duty_link = rows["pager_duty_link"]
+        newService.team_id = rows["team_id"]
+        newService.tags = set(tagsList)
+        response_mod = await client.create_service(
+            jsonable_encoder(newService),
+            response_model = cm
+        )
+
+        if response_mod and hasattr(response_mod, "success") and response_mod.success == True:
+            if isUpdate:
+                num_updated += 1
+            else:
+                num_created += 1
+    
+    file.file.close()
+    data = {}
+    data["num_attempted_to_update"] = num_attempted_to_update
+    data["num_updated"] = num_updated
+    data["num_attempted_to_create"] = num_attempted_to_create
+    data["num_created"] = num_created
+    return data
+
+@app.post("/upload_teams")
+async def upload(file: UploadFile = File(...)):
+    csvReader = csv.DictReader(codecs.iterdecode(file.file, 'utf-8'))
+    client = Mongodb()
+    num_attempted_to_update = 0
+    num_updated = 0
+    num_attempted_to_create = 0
+    num_created = 0
+    for rows in csvReader:   
+        isUpdate = False          
+
+        cm = CreateModel()
+        
+        newTeam = Team()
+        if rows["id"]:
+            dm = DeleteModel()
+            del_resp_model = await client.delete_team(
+                id = rows["id"],
+                response_model = dm,
+                ignore_service_check=True
+            )
+            if del_resp_model.success is True:
+                print("Successfully deleted...")
+                isUpdate = True
+            else:
+                print("Failed to delete team with id: " + rows["id"])
+            newTeam.id = rows["id"]
+        else:
+            newTeam.id = str(uuid4().hex)
+
+        if isUpdate:
+            num_attempted_to_update += 1
+        else:
+            num_attempted_to_create += 1
+
+        newTeam.name = rows["name"]
+        newTeam.operator_group = rows["operator_group"]
+        newTeam.admin_group = rows["admin_group"]
+        newTeam.slack_channel = rows["slack_channel"]
+        response_mod = await client.create_team(
+            jsonable_encoder(newTeam),
+            response_model = cm
+        )
+
+        if response_mod and hasattr(response_mod, "success") and response_mod.success == True:
+            print("Successfully created team")
+            if isUpdate:
+                num_updated += 1
+            else:
+                num_created += 1
+        else:
+            print("Failed to create team")
+    
+    file.file.close()
+    data = {}
+    data["num_attempted_to_update"] = num_attempted_to_update
+    data["num_updated"] = num_updated
+    data["num_attempted_to_create"] = num_attempted_to_create
+    data["num_created"] = num_created
+    return data
