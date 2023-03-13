@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, status, File, UploadFile
+from fastapi import FastAPI, HTTPException, status, File, UploadFile, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
@@ -13,10 +14,12 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 import csv
 import codecs
+from api.authutils import AuthenticationUtilities
 
 
 app = FastAPI()
 settings = Settings()
+authutils = AuthenticationUtilities()
 
 ##########################
 #       Core Routes
@@ -405,3 +408,31 @@ async def upload(file: UploadFile = File(...)):
     data["num_attempted_to_create"] = num_attempted_to_create
     data["num_created"] = num_created
     return data
+
+@app.post("/authenticate",summary="Create access and refresh tokens for user", response_model=TokenSchema)
+async def authenticate(form_data: OAuth2PasswordRequestForm = Depends()):
+    sa = ServiceAccount
+    auth_client = Mongodb()
+
+    accountForm = form_data.username
+    print(accountForm)
+    if accountForm is None:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            content=jsonable_encoder({"detail" : "Account Not Found"})
+        )
+    serviceAccount = await auth_client.getUser(accountForm, response_model=sa)
+    print(serviceAccount)
+    if serviceAccount:
+        hashed_pass = serviceAccount.__dict__["hashedPass"]
+        if not authutils.verify_password(form_data.password, hashed_pass):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect email or password"
+            )
+    
+        print(serviceAccount.__dict__["accountName"])
+    return {
+        "access_token": authutils.create_access_token(serviceAccount.__dict__["accountName"]),
+        "refresh_token": authutils.create_refresh_token(serviceAccount.__dict__["accountName"]),
+    }
