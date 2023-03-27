@@ -22,27 +22,27 @@ settings = Settings()
 #       Core Routes
 ##########################
 
-@app.post("/create_pagerduty_integration", response_model=CreateModel)
+@app.post("/create_pagerduty_integration", response_model=Upsert)
 async def create_pagerduty_integration(requested_pagerduty_integration: PagerdutyIntegration):    
-    cm = CreateModel()
+    cm = Upsert()
     pagerdutyIntegration = PagerdutyIntegration.parse_obj(requested_pagerduty_integration)  
     client = Mongodb()
-    await client.create_pagerduty_integration(pagerdutyIntegration)
+    await client.create_pagerduty_integration(jsonable_encoder(pagerdutyIntegration))
 
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        response_model = cm
+        content=jsonable_encoder(cm)
     )
 
-@app.post("/delete_pagerduty_integration", response_model=DeleteModel)
+@app.post("/delete_pagerduty_integration", response_model=Upsert)
 async def delete_pagerduty_integration():
-    dm = DeleteModel()
+    dm = Upsert()
     client = Mongodb()
     await client.delete_pagerduty_integration()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        response_model = dm
+        content=jsonable_encoder(dm)
     )
 
 @app.post("/create_service", response_model=CreateModel)
