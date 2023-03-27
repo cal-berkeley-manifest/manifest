@@ -33,6 +33,14 @@ class Mongodb:
             raise e
             return response_model
 
+    async def create_pagerduty_integration(self, item):   
+        try:
+            await self.delete_pagerduty_integration()
+            await self.db["pagerduty_integration"].insert_one(item)
+
+        except Exception as e:
+            raise e
+
     async def create_service(self, item, response_model):   
         try:
             service_found = await self.get_service("",item["name"])
@@ -255,6 +263,15 @@ class Mongodb:
 
         except Exception as e:
             return response_model
+            raise e
+
+    async def delete_pagerduty_integration(self):
+        try:
+            await self.db["pagerduty_integration"].delete_many({})
+                
+            return
+
+        except Exception as e:
             raise e
 
     async def delete_service(self, id, response_model=None):
