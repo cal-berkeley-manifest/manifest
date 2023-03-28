@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from api.schemas import *
 from json import loads
 from json.decoder import JSONDecodeError
+from pdpyras import APISession
+from pdpyras import PDClientError
 
 settings = Settings()
 
@@ -40,6 +42,65 @@ class Mongodb:
 
         except Exception as e:
             raise e
+        
+    async def sync_pagerduty_integration(self):   
+        try:
+            pagerdutyIntegration = await self.get_pagerduty_integration()
+            session = APISession(pagerdutyIntegration.api_key, default_from=pagerdutyIntegration.admin_email)
+
+            pdServiceUrlPrefix = "https://" + pagerdutyIntegration.pager_duty_org + ".pagerduty.com/service-directory/"
+
+            pdServices = session.list_all(
+                'services',
+                params={}
+            )
+
+            pdServiceNameSet = set()
+
+            defaultEscalationPolicy = {}
+            pdServiceNameToIDMap = {}
+            for pdService in pdServices:
+                if pdService["name"] == "Default Service":
+                    defaultEscalationPolicy = pdService["escalation_policy"]
+                pdServiceNameSet.add(pdService["name"])
+                pdServiceNameToIDMap[pdService["name"]] = pdService["id"]
+
+            
+            manifestServiceToAddNameSet = set()
+            manifestServices = await self.list_services()
+            manifestServiceIDToPDID = {}
+            nameToManifestID = {}
+            for manifestService in manifestServices:
+                nameToManifestID[manifestService["name"]] = manifestService["id"]
+                if (manifestService["name"] not in pdServiceNameSet):
+                    manifestServiceToAddNameSet.add(manifestService["name"])
+                else:
+                    pdServiceID = pdServiceNameToIDMap[manifestService["name"]]
+                    pdServiceLink =  pdServiceUrlPrefix + pdServiceID
+                    if pdServiceLink != manifestService["pager_duty_link"]:
+                        manifestServiceIDToPDID[manifestService["id"]] = pdServiceID
+
+            for manifestServiceToAddName in manifestServiceToAddNameSet:
+                try:
+                    updated_service = session.persist('services', 'name', {'name': manifestServiceToAddName, 'escalation_policy': defaultEscalationPolicy}, update=False)
+                    print("Successfully added service to pagerduty: " + manifestServiceToAddName + " had id of " + updated_service["id"])
+                    pdServiceNameToIDMap[manifestServiceToAddName] = updated_service["id"]
+                    manifestID = nameToManifestID[manifestServiceToAddName]
+                    manifestServiceIDToPDID[manifestID] = updated_service["id"]
+                except PDClientError as e:
+                    print("Failed adding service to pagerduty: " + manifestServiceToAddName)
+                    print(e)
+
+            for manifestID in manifestServiceIDToPDID:
+                pdServiceLink = pdServiceUrlPrefix + manifestServiceIDToPDID[manifestID]
+                updated_service = await self.db["services"].update_one({"id": manifestID}, {"$set": {'pager_duty_link':pdServiceLink}})
+                if updated_service:
+                    print("Successfully updated manifest service " + manifestID + " with pd link: " + pdServiceLink)
+                else:
+                    print("Failed updating manifest service " + manifestID + " with pd link: " + pdServiceLink)
+            
+        except Exception as e:
+            raise e
 
     async def create_service(self, item, response_model):   
         try:
@@ -56,6 +117,7 @@ class Mongodb:
                 id = item["id"]
                 created_service = await self.db["services"].find_one({"id": id})
                 response_model.__dict__.update({"description" : "Service Created", "success" : True, "id" : str(id)})
+                await self.sync_pagerduty_integration()
                 return response_model
 
         except Exception as e:
@@ -80,6 +142,19 @@ class Mongodb:
 
         except Exception as e:
             return response_model
+            raise e
+
+    async def get_pagerduty_integration(self):
+        try:
+            found_pagerduty_integration = await self.db["pagerduty_integration"].find_one({})
+        
+            if found_pagerduty_integration:
+                return PagerdutyIntegration.parse_obj(found_pagerduty_integration)
+                return response_model
+            else:
+                return found_pagerduty_integration
+
+        except Exception as e:
             raise e
 
     async def get_service(self, id, name, response_model=None):
