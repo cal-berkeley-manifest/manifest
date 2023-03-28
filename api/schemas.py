@@ -5,13 +5,8 @@ from typing import Union, Set, List
 #   DEFINE BaseModels
 ##################
 
-class CreatePagerdutyIntegration(BaseModel):
-    pager_duty_org: str
-    api_key: str
-
 class CreateService(BaseModel):
     name: str
-    pager_duty_link: str
     team_id: str
 
 class CreateTeam(BaseModel):
@@ -28,7 +23,6 @@ class UpdateTeam(BaseModel):
 
 class UpdateService(BaseModel):
     name: Union[str, None] = None
-    pager_duty_link: Union[str, None] = None
     team_id: Union[str, None] = None
     add_tag: List[str] = list()
     delete_tag: List[str] = list()
@@ -36,6 +30,7 @@ class UpdateService(BaseModel):
 class PagerdutyIntegration(BaseModel):
     pager_duty_org: str
     api_key: str
+    admin_email: str
 
 class Service(BaseModel):
     id: str = ""

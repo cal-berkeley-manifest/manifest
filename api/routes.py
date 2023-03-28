@@ -45,6 +45,17 @@ async def delete_pagerduty_integration():
         content=jsonable_encoder(dm)
     )
 
+@app.post("/sync_pagerduty_integration", response_model=Upsert)
+async def sync_pagerduty_integration():    
+    cm = Upsert()
+    client = Mongodb()
+    await client.sync_pagerduty_integration()
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=jsonable_encoder(cm)
+    )
+
 @app.post("/create_service", response_model=CreateModel)
 async def create_service(requested_service: CreateService):
     cm = CreateModel()
