@@ -452,14 +452,12 @@ class Mongodb:
 
     async def getUser(self, accountName, response_model=None):
         try:
-            #print(accountName)
             account = await self.auth_db["auth"].find_one({"accountName": accountName})
-            #print(account)
+            
             if account is not None:
                 response_model = response_model.parse_obj(account)
-                return response_model
-            else:
-                account
-            
+
+            return response_model.__dict__
+
         except JSONDecodeError as e:
-            pass
+            raise(e)

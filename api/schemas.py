@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Union, Set, List
+from uuid import UUID
+
 
 ##################
 #   DEFINE BaseModels
@@ -71,7 +73,7 @@ class ServiceAccount(BaseModel):
     id: str = ""
     accountName: str = ""
     hashedPass: str = ""
-    role: str = ""
+    role: list = []
 
 class TokenSchema(BaseModel):
     access_token: str
@@ -81,20 +83,18 @@ class TokenSchema(BaseModel):
 class TokenPayload(BaseModel):
     sub: str = None
     exp: int = None
+    role: list = None
 
 
-class UserAuth(BaseModel):
-    email: str = Field(..., description="user email")
-    password: str = Field(..., min_length=5, max_length=24, description="user password")
+#class UserAuth(BaseModel):
+#    email: str = Field(..., description="user email")
+#    password: str = Field(..., min_length=5, max_length=24, description="user password")
     
 
-""" class UserOut(BaseModel):
-    id: UUID
-    email: str
- """
+class UserOut(BaseModel):
+    accountName: str
+    role: list
 
-# class SystemUser(UserOut):
-#     password: str
 
 #class BulkUpsertModel(BaseModel):
 #    num_attempted_to_create: int = 0
