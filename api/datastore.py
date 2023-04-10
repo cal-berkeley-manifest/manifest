@@ -473,9 +473,7 @@ class Mongodb:
     async def create_serviceaccount(self, serviceAccountobj, response_model=None):
 
         user_found = await self.getUser(serviceAccountobj.get("accountName", ""))
-        print("increate svc")
-        print(serviceAccountobj)
-        print(user_found)
+   
         if not user_found:
             try:
                 new_user = await self.auth_db["auth"].insert_one(serviceAccountobj)
@@ -494,16 +492,14 @@ class Mongodb:
             return new_user
     
     async def delete_serviceaccount(self, accountName, response_model=None):
-        print("called")
+
         try:
             user_found = await self.getUser(accountName)
-            print(user_found)
+            
             if user_found:
-                    # TODO: figure this out
-                print("would have deleted")
+                # TODO: figure this out
                 deleted_user = await self.auth_db["auth"].delete_one({"accountName": accountName})
-                print("deleted_user")
-                    
+                
             if response_model != None:
                 if user_found:
                     response_model.__dict__.update({"description" : "User successfully deleted", "success" : True})
