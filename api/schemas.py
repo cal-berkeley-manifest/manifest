@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Union, Set, List
+from uuid import UUID
+
 
 ##################
 #   DEFINE BaseModels
@@ -64,8 +66,25 @@ class UpdateModel(BaseModel):
 class Upsert(BaseModel):
     success: bool = True
 
-#class BulkUpsertModel(BaseModel):
-#    num_attempted_to_create: int = 0
-#    num_created: int = 0
-#    num_attempted_to_update: int = 0
-#    num_updated: int = 0
+############################
+#  Auth Schemas
+############################
+class ServiceAccount(BaseModel):
+    id: str = ""
+    accountName: str = ""
+    hashedPass: str = ""
+    role: list = []
+
+class TokenSchema(BaseModel):
+    access_token: str
+    refresh_token: str
+    
+class TokenPayload(BaseModel):
+    sub: str = None
+    exp: int = None
+    role: list = None
+
+class CreateServiceAccount(BaseModel):
+    accountName: str = ""
+    password: str = ""
+    role: list = []

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, status, File, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, status, File, UploadFile, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from typing import List, Union
 from functools import lru_cache
@@ -13,17 +14,20 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 import csv
 import codecs
-
+from api.authutils import AuthenticationUtilities
+from api.authutils import Authenticator
 
 app = FastAPI()
 settings = Settings()
+authutils = AuthenticationUtilities()
+
 
 ##########################
 #       Core Routes
 ##########################
 
 @app.post("/create_pagerduty_integration", response_model=Upsert)
-async def create_pagerduty_integration(requested_pagerduty_integration: PagerdutyIntegration):    
+async def create_pagerduty_integration(requested_pagerduty_integration: PagerdutyIntegration, valid: bool = Depends(Authenticator(["admin","user"]))):    
     cm = Upsert()
     pagerdutyIntegration = PagerdutyIntegration.parse_obj(requested_pagerduty_integration)  
     client = Mongodb()
@@ -35,7 +39,7 @@ async def create_pagerduty_integration(requested_pagerduty_integration: Pagerdut
     )
 
 @app.post("/delete_pagerduty_integration", response_model=Upsert)
-async def delete_pagerduty_integration():
+async def delete_pagerduty_integration(valid: bool = Depends(Authenticator(["admin","user"]))):
     dm = Upsert()
     client = Mongodb()
     await client.delete_pagerduty_integration()
@@ -46,7 +50,7 @@ async def delete_pagerduty_integration():
     )
 
 @app.post("/sync_pagerduty_integration", response_model=Upsert)
-async def sync_pagerduty_integration():    
+async def sync_pagerduty_integration(valid: bool = Depends(Authenticator(["admin","user"]))):    
     cm = Upsert()
     client = Mongodb()
     await client.sync_pagerduty_integration()
@@ -56,8 +60,12 @@ async def sync_pagerduty_integration():
         content=jsonable_encoder(cm)
     )
 
+@app.get('/', response_class=RedirectResponse, include_in_schema=False)
+async def docs():
+    return RedirectResponse(url='/docs')
+
 @app.post("/create_service", response_model=CreateModel)
-async def create_service(requested_service: CreateService):
+async def create_service(requested_service: CreateService, valid: bool = Depends(Authenticator(["admin","user"]))):
     cm = CreateModel()
     service = Service.parse_obj(requested_service)
     service.__dict__.update(
@@ -84,7 +92,7 @@ async def create_service(requested_service: CreateService):
         )
 
 @app.post('/create_team',response_model=CreateModel)
-async def create_team(requested_team: CreateTeam):
+async def create_team(requested_team: CreateTeam, valid: bool = Depends(Authenticator(["admin","user"]))):
     cm = CreateModel()
     team = Team.parse_obj(requested_team)
     team.__dict__.update(
@@ -109,7 +117,7 @@ async def create_team(requested_team: CreateTeam):
         )
 
 @app.get("/get_team", response_model=Team)
-async def get_team(id: str=None, name: str=None):
+async def get_team(id: str=None, name: str=None, valid: bool = Depends(Authenticator(["admin","user"]))):
     #t = GetModel
     team_data = {
         "id": id,
@@ -129,7 +137,7 @@ async def get_team(id: str=None, name: str=None):
     raise HTTPException(status_code=404, detail=f"Team not found")
 
 @app.get("/get_service", response_model=Service)
-async def get_service(id: str=None, name: str=None):
+async def get_service(id: str=None, name: str=None, valid: bool = Depends(Authenticator(["admin","user"]))):
     service_data = {
         "id": id,
         "name": name
@@ -146,9 +154,8 @@ async def get_service(id: str=None, name: str=None):
         return response_mod
     raise HTTPException(status_code=404, detail=f"Service not found")
 
-
 @app.put("/update_team", response_model=UpdateModel)
-async def update_team(id: str, updated_team: UpdateTeam):
+async def update_team(id: str, updated_team: UpdateTeam, valid: bool = Depends(Authenticator(["admin","user"]))):
     updated_team = {k: v for k, v in updated_team.dict().items() if v is not None}
     client = Mongodb()
     response_mod = await client.update_team(
@@ -161,7 +168,7 @@ async def update_team(id: str, updated_team: UpdateTeam):
         return response_mod
 
 @app.put("/update_service", response_model=UpdateModel)
-async def update_service(id: str, updated_service: UpdateService):
+async def update_service(id: str, updated_service: UpdateService, valid: bool = Depends(Authenticator(["admin","user"]))):
     updated_service = {k: v for k, v in updated_service.dict().items() if v is not None}
     client = Mongodb()
     response_mod = await client.update_service(
@@ -174,7 +181,7 @@ async def update_service(id: str, updated_service: UpdateService):
         return response_mod
 
 @app.delete("/delete_team",response_model=DeleteModel)
-async def delete_team(id: str):
+async def delete_team(id: str, valid: bool = Depends(Authenticator(["admin","user"]))):
     dm = DeleteModel()
     client = Mongodb()
     response_mod = await client.delete_team(
@@ -191,7 +198,7 @@ async def delete_team(id: str):
             )
 
 @app.delete("/delete_service",response_model=DeleteModel)
-async def delete_service(id: str):
+async def delete_service(id: str, valid: bool = Depends(Authenticator(["admin","user"]))):
     dm = DeleteModel()
     client = Mongodb()
     response_mod = await client.delete_service(
@@ -208,7 +215,7 @@ async def delete_service(id: str):
             )
 
 @app.get("/list_teams", response_model=Union[List[Team],UpdateModel])
-async def list_teams(query: str=None):
+async def list_teams(query: str=None, valid: bool = Depends(Authenticator(["admin","user"]))):
     client = Mongodb()
     if query:
         response_mod = await client.query_teams(
@@ -222,7 +229,7 @@ async def list_teams(query: str=None):
     return response_mod
 
 @app.get("/list_services", response_model=Union[List[Service],UpdateModel])
-async def list_services(query: str=None):
+async def list_services(query: str=None, valid: bool = Depends(Authenticator(["admin","user"]))):
     client = Mongodb()
     if query:
         response_mod = await client.query_services(
@@ -236,7 +243,7 @@ async def list_services(query: str=None):
     return response_mod
 
 @app.get("/download_teams", response_description='csv')
-async def download_teams():
+async def download_teams(valid: bool = Depends(Authenticator(["admin","user"]))):
     client = Mongodb()
     csvStr = "id,name,operator_group,admin_group,slack_channel\n"
     teams = await client.list_teams()
@@ -260,7 +267,7 @@ async def download_teams():
     return StreamingResponse(iter([output.getvalue()]), headers=headers)
 
 @app.get("/download_services", response_description='csv')
-async def download_services():
+async def download_services(valid: bool = Depends(Authenticator(["admin","user"]))):
     client = Mongodb()
     csvStr = "id,name,pager_duty_link,team_id,tags\n"
     teams = await client.list_services()
@@ -291,7 +298,7 @@ async def download_services():
     return StreamingResponse(iter([output.getvalue()]), headers=headers)
 
 @app.post("/upload_services")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...), valid: bool = Depends(Authenticator(["admin","user"]))):
     csvReader = csv.DictReader(codecs.iterdecode(file.file, 'utf-8'))
     client = Mongodb()
     num_attempted_to_update = 0
@@ -346,7 +353,7 @@ async def upload(file: UploadFile = File(...)):
     return data
 
 @app.post("/upload_teams")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...), valid: bool = Depends(Authenticator(["admin","user"]))):
     csvReader = csv.DictReader(codecs.iterdecode(file.file, 'utf-8'))
     client = Mongodb()
     num_attempted_to_update = 0
@@ -405,3 +412,79 @@ async def upload(file: UploadFile = File(...)):
     data["num_attempted_to_create"] = num_attempted_to_create
     data["num_created"] = num_created
     return data
+
+@app.post("/authenticate",summary="Create access and refresh tokens for user", response_model=TokenSchema)
+async def authenticate(form_data: OAuth2PasswordRequestForm = Depends()):
+    sa = ServiceAccount()
+    auth_client = Mongodb()
+    accountForm = form_data.username
+    if accountForm is None:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            content=jsonable_encoder({"detail" : "Account Not Found"})
+        )
+    serviceAccount = await auth_client.getUser(accountForm, response_model=sa)
+
+    if serviceAccount["accountName"] != "":
+        hashed_pass = serviceAccount["hashedPass"]
+        
+        if not authutils.verify_password(form_data.password, hashed_pass):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect username or password"
+            )
+    
+        return {
+            "access_token": authutils.create_access_token(serviceAccount["accountName"], serviceAccount["role"]),
+            "refresh_token": authutils.create_refresh_token(serviceAccount["accountName"], serviceAccount["role"]),
+        }
+    else:
+
+        raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Incorrect email or password"
+                    )
+
+
+@app.get('/test', summary='Get details of currently logged in user')
+async def get_me(valid: bool = Depends(Authenticator(["admin","user"]))):
+    return valid
+
+@app.post("/create_service_account", response_model=CreateModel)
+async def create_service_account( requested_user: CreateServiceAccount, valid: bool = Depends(Authenticator(["admin"]))):
+    cm = CreateModel()
+    auth_client = Mongodb()
+    sanitized_user = requested_user.__dict__
+    sanitized_user.update({"hashedPass" : authutils.get_hashed_password(sanitized_user["password"])})
+
+    del sanitized_user["password"]
+
+    resp_mod = await auth_client.create_serviceaccount(sanitized_user, response_model=cm)
+
+    if resp_mod.success == True:
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=jsonable_encoder(resp_mod)
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT, 
+            content=jsonable_encoder(resp_mod)
+        )
+    
+@app.delete("/delete_service_account")
+async def delete_service_account(account_name: str, valid: bool = Depends(Authenticator(["admin","user"]))):
+    dm = DeleteModel()
+    auth_client = Mongodb()
+    response_mod = await auth_client.delete_serviceaccount(
+        accountName=account_name,
+        response_model=dm
+    )
+
+    if response_mod.success == True:
+        return response_mod
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=jsonable_encoder(response_mod)
+            )

@@ -13,8 +13,11 @@ settings = Settings()
 
 class Mongodb:
     
-    client = motor.motor_asyncio.AsyncIOMotorClient(settings.mongodb_url)
-    db = client["manifest-dev"]
+    core_client = motor.motor_asyncio.AsyncIOMotorClient(settings.CORE_MONGO_CONN)
+    core_db = core_client["manifest-dev"]
+
+    auth_client = motor.motor_asyncio.AsyncIOMotorClient(settings.AUTH_MONGO_CONN)
+    auth_db = auth_client["manifest-auth"]
 
     async def create_team(self, item, response_model):
         
@@ -24,9 +27,9 @@ class Mongodb:
                 response_model.__dict__.update({"description" : "Team name already exists", "success" : False, "id" : ""})
                 return response_model
             else:
-                new_team = await self.db["teams"].insert_one(item)
+                new_team = await self.core_db["teams"].insert_one(item)
                 id = item["id"]
-                created_team = await self.db["teams"].find_one({"id": id})
+                created_team = await self.core_db["teams"].find_one({"id": id})
                 response_model.__dict__.update({"description" : "Team Created", "success" : True, "id" : str(id)})
                 return response_model
 
@@ -38,7 +41,7 @@ class Mongodb:
     async def create_pagerduty_integration(self, item):   
         try:
             await self.delete_pagerduty_integration()
-            await self.db["pagerduty_integration"].insert_one(item)
+            await self.core_db["pagerduty_integration"].insert_one(item)
 
         except Exception as e:
             raise e
@@ -93,7 +96,7 @@ class Mongodb:
 
             for manifestID in manifestServiceIDToPDID:
                 pdServiceLink = pdServiceUrlPrefix + manifestServiceIDToPDID[manifestID]
-                updated_service = await self.db["services"].update_one({"id": manifestID}, {"$set": {'pager_duty_link':pdServiceLink}})
+                updated_service = await self.core_db["services"].update_one({"id": manifestID}, {"$set": {'pager_duty_link':pdServiceLink}})
                 if updated_service:
                     print("Successfully updated manifest service " + manifestID + " with pd link: " + pdServiceLink)
                 else:
@@ -113,9 +116,9 @@ class Mongodb:
                 if team_found is None:
                     response_model.__dict__.update({"description" : "Invalid team_id assigned to service", "success" : False, "id" : ""})
                     return response_model
-                new_service = await self.db["services"].insert_one(item)
+                new_service = await self.core_db["services"].insert_one(item)
                 id = item["id"]
-                created_service = await self.db["services"].find_one({"id": id})
+                created_service = await self.core_db["services"].find_one({"id": id})
                 response_model.__dict__.update({"description" : "Service Created", "success" : True, "id" : str(id)})
                 await self.sync_pagerduty_integration()
                 return response_model
@@ -133,7 +136,7 @@ class Mongodb:
             key = "name"
             value = name
         try:
-            found_team = await self.db["teams"].find_one({key: value})
+            found_team = await self.core_db["teams"].find_one({key: value})
             if response_model != None and (found_team):
                 response_model = response_model.parse_obj(found_team)
                 return response_model
@@ -146,7 +149,7 @@ class Mongodb:
 
     async def get_pagerduty_integration(self):
         try:
-            found_pagerduty_integration = await self.db["pagerduty_integration"].find_one({})
+            found_pagerduty_integration = await self.core_db["pagerduty_integration"].find_one({})
         
             if found_pagerduty_integration:
                 return PagerdutyIntegration.parse_obj(found_pagerduty_integration)
@@ -165,7 +168,7 @@ class Mongodb:
             key = "name"
             value = name
         try:
-            found_service = await self.db["services"].find_one({key: value})
+            found_service = await self.core_db["services"].find_one({key: value})
         
             if (response_model != None) and (found_service):
                 response_model = response_model.parse_obj(found_service)
@@ -179,9 +182,9 @@ class Mongodb:
 
     async def update_team(self, id, update_info, response_model=None):
         try:
-            found_team = await self.db["teams"].find_one({"id": id})
+            found_team = await self.core_db["teams"].find_one({"id": id})
             if found_team:
-                updated_team = await self.db["teams"].update_one({"id": id}, {"$set": update_info})
+                updated_team = await self.core_db["teams"].update_one({"id": id}, {"$set": update_info})
                 if updated_team:
                     response_model.__dict__.update(
                         {
@@ -220,7 +223,7 @@ class Mongodb:
 
     async def update_service(self, id, update_info, response_model=None):
         try:
-            found_service = await self.db["services"].find_one({"id": id})
+            found_service = await self.core_db["services"].find_one({"id": id})
             if found_service:
                 if 'team_id' in update_info:
                     team_found = await self.get_team(update_info["team_id"], "")
@@ -236,7 +239,7 @@ class Mongodb:
                             content=jsonable_encoder(response_model)
                         )
                 if 'add_tag' in update_info:
-                    updated_tags = await self.db["services"].update_one(
+                    updated_tags = await self.core_db["services"].update_one(
                                 {"id": id},
                                 {"$addToSet": {"tags": {"$each": update_info['add_tag']}}}
                             )
@@ -252,7 +255,7 @@ class Mongodb:
                             content=jsonable_encoder(response_model)
                         )
                 if 'delete_tag' in update_info:
-                    deleted_tags = await self.db["services"].update_one(
+                    deleted_tags = await self.core_db["services"].update_one(
                         {"id": id},
                         {"$pull": {"tags": {"$in": update_info['delete_tag']}}}
                     )
@@ -268,7 +271,7 @@ class Mongodb:
                             content=jsonable_encoder(response_model)
                         )
 
-                updated_service = await self.db["services"].update_one({"id": id}, {"$set": update_info})
+                updated_service = await self.core_db["services"].update_one({"id": id}, {"$set": update_info})
                 if updated_service:
                     response_model.__dict__.update(
                         {
@@ -314,7 +317,7 @@ class Mongodb:
 
     async def delete_team(self, id, response_model=None,ignore_service_check=False):
         try:
-            found_team = await self.db["teams"].find_one({"id": id})
+            found_team = await self.core_db["teams"].find_one({"id": id})
             if found_team != None:
                 team_model = Team.parse_obj(found_team)
                 if ignore_service_check is False:
@@ -325,7 +328,7 @@ class Mongodb:
                             if service_model.team_id == team_model.id:
                                 response_model.__dict__.update({"description" : "Cannot delete team with active services", "success" : False})
                                 return response_model
-                await self.db["teams"].delete_one({"id": id})
+                await self.core_db["teams"].delete_one({"id": id})
 
             if response_model != None:
                 if found_team:
@@ -342,7 +345,7 @@ class Mongodb:
 
     async def delete_pagerduty_integration(self):
         try:
-            await self.db["pagerduty_integration"].delete_many({})
+            await self.core_db["pagerduty_integration"].delete_many({})
                 
             return
 
@@ -351,10 +354,10 @@ class Mongodb:
 
     async def delete_service(self, id, response_model=None):
         try:
-            found_service = await self.db["services"].find_one({"id": id})
+            found_service = await self.core_db["services"].find_one({"id": id})
             if found_service:
                 # TODO: figure this out
-                await self.db["services"].delete_one({"id": id})
+                await self.core_db["services"].delete_one({"id": id})
                 
             if response_model != None:
                 if found_service:
@@ -370,18 +373,18 @@ class Mongodb:
             raise e
 
     async def list_teams(self):
-            teams = await self.db["teams"].find().to_list(1000)
+            teams = await self.core_db["teams"].find().to_list(1000)
             return teams
 
     async def list_services(self):
-        services = await self.db["services"].find().to_list(1000)
+        services = await self.core_db["services"].find().to_list(1000)
         return services
     
     async def query_teams(self, query, response_model=None):
         try:
             encoded = loads(query)
             if encoded:
-                query_success = await self.db["teams"].find(encoded).to_list(1000)
+                query_success = await self.core_db["teams"].find(encoded).to_list(1000)
                 if query_success:
                     return query_success
                 else:
@@ -416,7 +419,7 @@ class Mongodb:
         try:
             encoded = loads(query)
             if encoded:
-                query_success = await self.db["services"].find(encoded).to_list(1000)
+                query_success = await self.core_db["services"].find(encoded).to_list(1000)
                 if query_success:
                     return query_success
                 else:
@@ -446,3 +449,73 @@ class Mongodb:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content=jsonable_encoder(response_model)
             )
+
+    async def getUser(self, accountName, response_model=None):
+        try:
+            account = await self.auth_db["auth"].find_one({"accountName": accountName})
+            
+            if response_model:
+                if account is not None:
+                    response_model = response_model.parse_obj(account)
+                    return response_model.__dict__
+                else:
+                    pass
+
+            else:
+                if account is not None:
+                    return account
+                else:
+                    pass
+
+        except JSONDecodeError as e:
+            raise(e)
+
+    async def create_serviceaccount(self, serviceAccountobj, response_model=None):
+
+        user_found = await self.getUser(serviceAccountobj.get("accountName", ""))
+        print("increate svc")
+        print(serviceAccountobj)
+        print(user_found)
+        if not user_found:
+            try:
+                new_user = await self.auth_db["auth"].insert_one(serviceAccountobj)
+                if response_model:
+                    response_model.__dict__.update({"description" : "Service Account Created"})
+
+            except Exception as e:
+                raise e
+        else:
+            if response_model:
+                response_model.__dict__.update({"success" : False, "description" : "Service Account Already Exists"})
+        
+        if response_model:
+            return response_model
+        else:
+            return new_user
+    
+    async def delete_serviceaccount(self, accountName, response_model=None):
+        print("called")
+        try:
+            user_found = await self.getUser(accountName)
+            print(user_found)
+            if user_found:
+                    # TODO: figure this out
+                print("would have deleted")
+                deleted_user = await self.auth_db["auth"].delete_one({"accountName": accountName})
+                print("deleted_user")
+                    
+            if response_model != None:
+                if user_found:
+                    response_model.__dict__.update({"description" : "User successfully deleted", "success" : True})
+                else:
+                    response_model.__dict__.update({"description" : "Could Not Delete User", "success" : False})
+                
+                return response_model
+                
+            else:
+                return
+
+        except Exception as e:
+            raise e
+            return response_model
+            
