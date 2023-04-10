@@ -38,7 +38,6 @@ class AuthenticationUtilities:
 
 
     def create_access_token(self, subject: Union[str, Any], role: list , expires_delta: int = None) -> str:
-        print(f"delta : {expires_delta}")
         if expires_delta is not None:
             expires_delta = datetime.utcnow() + expires_delta
         else:
@@ -63,10 +62,8 @@ class Authenticator:
 
     def __init__(self, roles: list):
         self.roles = roles
-        print("authenticator")
     
     def __call__(self, token: str = Depends(reuseable_oauth)):
-        print(self.roles)
         try:
             payload = jwt.decode(
                 token, jwt_secret_key, algorithms=[signing_algo]

@@ -79,25 +79,12 @@ class TokenSchema(BaseModel):
     access_token: str
     refresh_token: str
     
-    
 class TokenPayload(BaseModel):
     sub: str = None
     exp: int = None
     role: list = None
 
-
-#class UserAuth(BaseModel):
-#    email: str = Field(..., description="user email")
-#    password: str = Field(..., min_length=5, max_length=24, description="user password")
-    
-
-class UserOut(BaseModel):
-    accountName: str
-    role: list
-
-
-#class BulkUpsertModel(BaseModel):
-#    num_attempted_to_create: int = 0
-#    num_created: int = 0
-#    num_attempted_to_update: int = 0
-#    num_updated: int = 0
+class CreateServiceAccount(BaseModel):
+    accountName: str = ""
+    password: str = ""
+    role: list = []

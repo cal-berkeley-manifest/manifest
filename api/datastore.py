@@ -41,7 +41,7 @@ class Mongodb:
     async def create_pagerduty_integration(self, item):   
         try:
             await self.delete_pagerduty_integration()
-            await self.db["pagerduty_integration"].insert_one(item)
+            await self.core_db["pagerduty_integration"].insert_one(item)
 
         except Exception as e:
             raise e
@@ -96,7 +96,7 @@ class Mongodb:
 
             for manifestID in manifestServiceIDToPDID:
                 pdServiceLink = pdServiceUrlPrefix + manifestServiceIDToPDID[manifestID]
-                updated_service = await self.db["services"].update_one({"id": manifestID}, {"$set": {'pager_duty_link':pdServiceLink}})
+                updated_service = await self.core_db["services"].update_one({"id": manifestID}, {"$set": {'pager_duty_link':pdServiceLink}})
                 if updated_service:
                     print("Successfully updated manifest service " + manifestID + " with pd link: " + pdServiceLink)
                 else:
@@ -149,7 +149,7 @@ class Mongodb:
 
     async def get_pagerduty_integration(self):
         try:
-            found_pagerduty_integration = await self.db["pagerduty_integration"].find_one({})
+            found_pagerduty_integration = await self.core_db["pagerduty_integration"].find_one({})
         
             if found_pagerduty_integration:
                 return PagerdutyIntegration.parse_obj(found_pagerduty_integration)
@@ -345,7 +345,7 @@ class Mongodb:
 
     async def delete_pagerduty_integration(self):
         try:
-            await self.db["pagerduty_integration"].delete_many({})
+            await self.core_db["pagerduty_integration"].delete_many({})
                 
             return
 
@@ -454,10 +454,68 @@ class Mongodb:
         try:
             account = await self.auth_db["auth"].find_one({"accountName": accountName})
             
-            if account is not None:
-                response_model = response_model.parse_obj(account)
+            if response_model:
+                if account is not None:
+                    response_model = response_model.parse_obj(account)
+                    return response_model.__dict__
+                else:
+                    pass
 
-            return response_model.__dict__
+            else:
+                if account is not None:
+                    return account
+                else:
+                    pass
 
         except JSONDecodeError as e:
             raise(e)
+
+    async def create_serviceaccount(self, serviceAccountobj, response_model=None):
+
+        user_found = await self.getUser(serviceAccountobj.get("accountName", ""))
+        print("increate svc")
+        print(serviceAccountobj)
+        print(user_found)
+        if not user_found:
+            try:
+                new_user = await self.auth_db["auth"].insert_one(serviceAccountobj)
+                if response_model:
+                    response_model.__dict__.update({"description" : "Service Account Created"})
+
+            except Exception as e:
+                raise e
+        else:
+            if response_model:
+                response_model.__dict__.update({"success" : False, "description" : "Service Account Already Exists"})
+        
+        if response_model:
+            return response_model
+        else:
+            return new_user
+    
+    async def delete_serviceaccount(self, accountName, response_model=None):
+        print("called")
+        try:
+            user_found = await self.getUser(accountName)
+            print(user_found)
+            if user_found:
+                    # TODO: figure this out
+                print("would have deleted")
+                deleted_user = await self.auth_db["auth"].delete_one({"accountName": accountName})
+                print("deleted_user")
+                    
+            if response_model != None:
+                if user_found:
+                    response_model.__dict__.update({"description" : "User successfully deleted", "success" : True})
+                else:
+                    response_model.__dict__.update({"description" : "Could Not Delete User", "success" : False})
+                
+                return response_model
+                
+            else:
+                return
+
+        except Exception as e:
+            raise e
+            return response_model
+            

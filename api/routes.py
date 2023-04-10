@@ -8,7 +8,6 @@ from uuid import uuid4
 from fastapi_pagination import Page, add_pagination, paginate
 from api.config import Settings
 from api.datastore import Mongodb
-from api.routeverification import *
 from api.schemas import *
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
@@ -22,14 +21,13 @@ app = FastAPI()
 settings = Settings()
 authutils = AuthenticationUtilities()
 
-whodis_admin = Authenticator("admin")
 
 ##########################
 #       Core Routes
 ##########################
 
 @app.post("/create_pagerduty_integration", response_model=Upsert)
-async def create_pagerduty_integration(requested_pagerduty_integration: PagerdutyIntegration):    
+async def create_pagerduty_integration(requested_pagerduty_integration: PagerdutyIntegration, valid: bool = Depends(Authenticator(["admin","user"]))):    
     cm = Upsert()
     pagerdutyIntegration = PagerdutyIntegration.parse_obj(requested_pagerduty_integration)  
     client = Mongodb()
@@ -41,7 +39,7 @@ async def create_pagerduty_integration(requested_pagerduty_integration: Pagerdut
     )
 
 @app.post("/delete_pagerduty_integration", response_model=Upsert)
-async def delete_pagerduty_integration():
+async def delete_pagerduty_integration(valid: bool = Depends(Authenticator(["admin","user"]))):
     dm = Upsert()
     client = Mongodb()
     await client.delete_pagerduty_integration()
@@ -52,7 +50,7 @@ async def delete_pagerduty_integration():
     )
 
 @app.post("/sync_pagerduty_integration", response_model=Upsert)
-async def sync_pagerduty_integration():    
+async def sync_pagerduty_integration(valid: bool = Depends(Authenticator(["admin","user"]))):    
     cm = Upsert()
     client = Mongodb()
     await client.sync_pagerduty_integration()
@@ -155,7 +153,6 @@ async def get_service(id: str=None, name: str=None, valid: bool = Depends(Authen
     if response_mod:
         return response_mod
     raise HTTPException(status_code=404, detail=f"Service not found")
-
 
 @app.put("/update_team", response_model=UpdateModel)
 async def update_team(id: str, updated_team: UpdateTeam, valid: bool = Depends(Authenticator(["admin","user"]))):
@@ -428,13 +425,13 @@ async def authenticate(form_data: OAuth2PasswordRequestForm = Depends()):
         )
     serviceAccount = await auth_client.getUser(accountForm, response_model=sa)
 
-    if serviceAccount["id"] != "":
+    if serviceAccount["accountName"] != "":
         hashed_pass = serviceAccount["hashedPass"]
-
+        
         if not authutils.verify_password(form_data.password, hashed_pass):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Incorrect email or password"
+                detail="Incorrect username or password"
             )
     
         return {
@@ -452,3 +449,42 @@ async def authenticate(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.get('/test', summary='Get details of currently logged in user')
 async def get_me(valid: bool = Depends(Authenticator(["admin","user"]))):
     return valid
+
+@app.post("/create_service_account", response_model=CreateModel)
+async def create_service_account( requested_user: CreateServiceAccount, valid: bool = Depends(Authenticator(["admin"]))):
+    cm = CreateModel()
+    auth_client = Mongodb()
+    sanitized_user = requested_user.__dict__
+    sanitized_user.update({"hashedPass" : authutils.get_hashed_password(sanitized_user["password"])})
+
+    del sanitized_user["password"]
+
+    resp_mod = await auth_client.create_serviceaccount(sanitized_user, response_model=cm)
+
+    if resp_mod.success == True:
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=jsonable_encoder(resp_mod)
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT, 
+            content=jsonable_encoder(resp_mod)
+        )
+    
+@app.delete("/delete_service_account")
+async def delete_service_account(account_name: str, valid: bool = Depends(Authenticator(["admin","user"]))):
+    dm = DeleteModel()
+    auth_client = Mongodb()
+    response_mod = await auth_client.delete_serviceaccount(
+        accountName=account_name,
+        response_model=dm
+    )
+
+    if response_mod.success == True:
+        return response_mod
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=jsonable_encoder(response_mod)
+            )
