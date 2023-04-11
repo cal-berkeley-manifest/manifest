@@ -33,5 +33,3 @@ Provide instructions on how to use your project here
  - **Virginia Gresham**: *UC Berkeley*
  - **Kyle Jaquez**: *UC Berkeley*
  
- ## License 
- Include information about the license for your project here.
